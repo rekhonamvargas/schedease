@@ -40,6 +40,8 @@ export default function SavedSchedules() {
   const { subjects } = useSubjects([]);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState(null);
 
   // Create a lookup map for subjects
   const subjectsMap = useMemo(() => {
@@ -58,9 +60,20 @@ export default function SavedSchedules() {
   };
 
   const handleDeleteSchedule = (scheduleId) => {
-    if (window.confirm("Are you sure you want to delete this schedule?")) {
-      deleteSchedule(scheduleId);
+    setScheduleToDelete(scheduleId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (scheduleToDelete) {
+      deleteSchedule(scheduleToDelete);
+      handleCloseDeleteDialog();
     }
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setScheduleToDelete(null);
   };
 
   const handleCloseDialog = () => {
@@ -141,7 +154,7 @@ export default function SavedSchedules() {
     if (!scheduleString) return [];
     const scheduleParts = scheduleString.split(" / ").map(s => s.trim()).filter(Boolean);
     const parsedSchedules = [];
-    
+
     for (const part of scheduleParts) {
       const parsed = parseScheduleString(part);
       if (parsed) {
@@ -154,7 +167,7 @@ export default function SavedSchedules() {
           const room = tail?.trim() || "";
           const start24 = convertTo24h(start12);
           const end24 = convertTo24h(end12);
-          
+
           if (start24 && end24) {
             for (const day of days) {
               const normalizedDay = normalizeDay(day);
@@ -179,19 +192,19 @@ export default function SavedSchedules() {
     const timeParts = time24.split(":").map(Number);
     const startParts = start24.split(":").map(Number);
     const endParts = end24.split(":").map(Number);
-    
+
     if (timeParts.length !== 2 || startParts.length !== 2 || endParts.length !== 2) return false;
-    
+
     const [timeH, timeM] = timeParts;
     const [startH, startM] = startParts;
     const [endH, endM] = endParts;
-    
+
     if (isNaN(timeH) || isNaN(timeM) || isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
-    
+
     const timeMinutes = timeH * 60 + timeM;
     const startMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;
-    
+
     return timeMinutes >= startMinutes && timeMinutes < endMinutes;
   };
 
@@ -200,15 +213,15 @@ export default function SavedSchedules() {
     const startParts = start24.split(":").map(Number);
     const endParts = end24.split(":").map(Number);
     if (startParts.length !== 2 || endParts.length !== 2) return 1;
-    
+
     const [startH, startM] = startParts;
     const [endH, endM] = endParts;
     if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return 1;
-    
+
     const startMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;
     const durationMinutes = endMinutes - startMinutes;
-    
+
     return Math.max(1, Math.ceil(durationMinutes / 30));
   };
 
@@ -217,15 +230,15 @@ export default function SavedSchedules() {
     const timeSlots = generateTimeSlots();
     const scheduleSubjects = getScheduleSubjects(schedule);
     const grid = new Map();
-    
+
     scheduleSubjects.forEach((subject) => {
       if (!subject.schedule) return;
       const parsedSchedules = parseSubjectSchedule(subject.schedule);
-      
+
       parsedSchedules.forEach((parsed) => {
         const dayIndex = DAY_MAP[parsed.day]?.index;
         if (dayIndex === undefined) return;
-        
+
         timeSlots.forEach((slot, slotIndex) => {
           if (isTimeInRange(slot.time24, parsed.start, parsed.end)) {
             const key = `${dayIndex}_${slot.time24}`;
@@ -241,25 +254,25 @@ export default function SavedSchedules() {
         });
       });
     });
-    
+
     return { grid, timeSlots };
   };
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#fff6db" }}>
       <Header onMenu={() => setSidebarOpen(true)} cartCount={schedules.length} />
-      <Sidebar 
-        open={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-        onNavigate={() => setSidebarOpen(false)} 
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigate={() => setSidebarOpen(false)}
       />
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Box sx={{ mb: 4 }}>
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
               color: "#9e0807",
               fontFamily: "'Poppins', sans-serif",
               mb: 1,
@@ -267,9 +280,9 @@ export default function SavedSchedules() {
           >
             Saved Schedules
           </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
+          <Typography
+            variant="body1"
+            sx={{
               color: "#666",
               fontFamily: "'Poppins', sans-serif",
             }}
@@ -289,17 +302,17 @@ export default function SavedSchedules() {
               border: "1px solid rgba(244, 197, 34, 0.15)",
             }}
           >
-            <CalendarTodayIcon 
-              sx={{ 
-                fontSize: 64, 
-                color: "#f4c522", 
+            <CalendarTodayIcon
+              sx={{
+                fontSize: 64,
+                color: "#f4c522",
                 mb: 2,
                 opacity: 0.5,
-              }} 
+              }}
             />
-            <Typography 
-              variant="h6" 
-              sx={{ 
+            <Typography
+              variant="h6"
+              sx={{
                 color: "#666",
                 fontFamily: "'Poppins', sans-serif",
                 mb: 1,
@@ -307,9 +320,9 @@ export default function SavedSchedules() {
             >
               No Saved Schedules Yet
             </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
+            <Typography
+              variant="body2"
+              sx={{
                 color: "#999",
                 fontFamily: "'Poppins', sans-serif",
               }}
@@ -321,12 +334,12 @@ export default function SavedSchedules() {
           <Grid container spacing={3}>
             {schedules.map((schedule) => {
               const scheduleSubjects = getScheduleSubjects(schedule);
-              const createdDate = schedule.created_at 
+              const createdDate = schedule.created_at
                 ? new Date(schedule.created_at).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
                 : "Unknown date";
 
               return (
@@ -349,12 +362,12 @@ export default function SavedSchedules() {
                   >
                     <CardContent sx={{ flexGrow: 1, pb: 1 }}>
                       <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                        <EventIcon 
-                          sx={{ 
-                            color: "#f4c522", 
+                        <EventIcon
+                          sx={{
+                            color: "#f4c522",
                             mr: 1.5,
                             fontSize: 28,
-                          }} 
+                          }}
                         />
                         <Typography
                           variant="h6"
@@ -396,73 +409,12 @@ export default function SavedSchedules() {
                         />
                       </Box>
 
-                      {scheduleSubjects.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "#999",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                              letterSpacing: 0.5,
-                              display: "block",
-                              mb: 1,
-                            }}
-                          >
-                            Subjects
-                          </Typography>
-                          <Stack spacing={0.5}>
-                            {scheduleSubjects.slice(0, 3).map((subject) => (
-                              <Box
-                                key={subject.data_id}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    bgcolor: "#f4c522",
-                                  }}
-                                />
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    color: "#333",
-                                    fontSize: "0.875rem",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {subject.subject_code} - {subject.subject_title}
-                                </Typography>
-                              </Box>
-                            ))}
-                            {scheduleSubjects.length > 3 && (
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color: "#999",
-                                  fontStyle: "italic",
-                                  pl: 2,
-                                }}
-                              >
-                                +{scheduleSubjects.length - 3} more
-                              </Typography>
-                            )}
-                          </Stack>
-                        </Box>
-                      )}
+
                     </CardContent>
 
-                    <CardActions 
-                      sx={{ 
-                        p: 2, 
+                    <CardActions
+                      sx={{
+                        p: 2,
                         pt: 0,
                         display: "flex",
                         justifyContent: "space-between",
@@ -616,7 +568,7 @@ export default function SavedSchedules() {
                     <TableBody>
                       {timeSlots.map((slot, rowIndex) => {
                         const rowSpanCells = new Set();
-                        
+
                         for (let prevRow = 0; prevRow < rowIndex; prevRow++) {
                           [0, 1, 2, 3, 4, 5, 6].forEach((dayIndex) => {
                             const prevKey = `${dayIndex}_${timeSlots[prevRow].time24}`;
@@ -629,7 +581,7 @@ export default function SavedSchedules() {
                             }
                           });
                         }
-                        
+
                         return (
                           <TableRow key={slot.time24}>
                             <TableCell
@@ -655,10 +607,10 @@ export default function SavedSchedules() {
                               if (rowSpanCells.has(dayIndex)) {
                                 return null;
                               }
-                              
+
                               const key = `${dayIndex}_${slot.time24}`;
                               const cellData = grid.get(key);
-                              
+
                               if (cellData && cellData.startSlot === rowIndex) {
                                 const { subject, parsed, rowSpan } = cellData;
                                 return (
@@ -722,7 +674,7 @@ export default function SavedSchedules() {
                                   </TableCell>
                                 );
                               }
-                              
+
                               return (
                                 <TableCell
                                   key={dayIndex}
@@ -745,6 +697,66 @@ export default function SavedSchedules() {
               );
             })()}
           </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDeleteDialog}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              bgcolor: "#fffef7",
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              fontWeight: 700,
+              color: "#9e0807",
+              fontFamily: "'Poppins', sans-serif",
+              borderBottom: "1px solid rgba(244, 197, 34, 0.2)",
+            }}
+          >
+            Delete Schedule?
+          </DialogTitle>
+          <DialogContent sx={{ p: 3, pt: 3 }}>
+            <Typography sx={{ fontFamily: "'Poppins', sans-serif", color: "#666" }}>
+              Are you sure you want to delete this schedule?
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, pt: 0 }}>
+            <Button
+              onClick={handleCloseDeleteDialog}
+              sx={{
+                color: "#666",
+                fontWeight: 600,
+                textTransform: "none",
+                fontFamily: "'Poppins', sans-serif",
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              variant="contained"
+              sx={{
+                bgcolor: "#d32f2f",
+                color: "#fff",
+                fontWeight: 600,
+                textTransform: "none",
+                borderRadius: "20px",
+                fontFamily: "'Poppins', sans-serif",
+                "&:hover": {
+                  bgcolor: "#b71c1c",
+                },
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
         </Dialog>
       </Container>
     </Box>
