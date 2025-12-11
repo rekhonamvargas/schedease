@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import useForm from "../../hooks/useForm";
 import { loadUsers, saveUsers, setCurrentUserId } from "../../utils/storage";
+import { hashPassword, sanitizeForLogging } from "../../utils/security";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -72,19 +73,22 @@ export default function Signup() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
 
     if (!validateForm()) return;
 
     try {
-      console.log("Signup attempt:", {
-        full_name: values.full_name,
-        email: values.email,
-        username: values.username,
-        password: "[HIDDEN]",
-      });
+      // Log sanitized version only
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Signup attempt:", sanitizeForLogging({
+          full_name: values.full_name,
+          email: values.email,
+          username: values.username,
+          password: values.password,
+        }));
+      }
 
       // Local demo users store
       const users = loadUsers();
@@ -94,10 +98,13 @@ export default function Signup() {
         return;
       }
 
+      // Hash the password before storing
+      const hashedPassword = await hashPassword(values.password);
+
       const newUser = {
         username: values.username,
         email: values.email,
-        password: values.password, // demo only - do NOT store plain passwords in production
+        password: hashedPassword, // Store hashed password
         full_name: values.full_name,
       };
       users.push(newUser);

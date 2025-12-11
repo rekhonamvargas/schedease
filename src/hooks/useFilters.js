@@ -222,13 +222,16 @@ export default function useFilters(initial = {}) {
     const breakVal = enforceBreak ? parseInt(raw, 10) : null;
     if (enforceBreak && Number.isNaN(breakVal)) return [];
 
-    console.info("Filtering subjects:", {
-        total: (subjects || []).length,
-        enforceBreak,
-        breakVal,
-        excludeDays,
-        classTypes,
-    });
+    // Debug info removed for security
+    if (process.env.NODE_ENV === 'development') {
+      console.info("Filtering subjects:", {
+          total: (subjects || []).length,
+          enforceBreak,
+          breakVal,
+          excludeDays,
+          classTypes,
+      });
+    }
 
     return (subjects || []).filter((s) => {
         if (excludeDays.length > 0 && subjectHasAnyExcludeDay(s, excludeDays)) return false;
@@ -247,7 +250,6 @@ export default function useFilters(initial = {}) {
     });
     /*const breakVal = parseInt(breakBetweenMinutes, 10);
     if (Number.isNaN(breakVal)) return [];
-    console.info("Filtering subjects:", { total: (subjects || []).length, breakVal, excludeDays, classTypes });
     return (subjects || []).filter((s) => {
       if (excludeDays.length > 0 && subjectHasAnyExcludeDay(s, excludeDays)) return false;
       if (classTypes.length > 0) {

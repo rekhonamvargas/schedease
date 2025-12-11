@@ -1,0 +1,20 @@
+a935486 Rekhona Marie P. Vargas <rekhonavargas04@gmail.com> 2025-12-11 Update SavedSchedules component
+e5c47cf zyrrhky <zyrrahkaye.lacida@cit.edu> 2025-12-10 Merge pull request #8 from zyrrhky/fix/save-schedule
+8113cd1 sorasai <angel.cy1316@gmail.com> 2025-12-10 fix: improve UI styling in Saved Schedules and add confirmation message
+eea694d Sittie Macasindel <sittiesharima.macasindel@cit.edu> 2025-12-10 Redesign dashboard layout with automatic workflow navigation in action buttons (Set Filter, Import Data, Subject List)
+41af201 zyrrhky <zyrrahkaye.lacida@cit.edu> 2025-12-08 Merge pull request #7 from zyrrhky/fix/styling
+d69f783 sorasai <angel.cy1316@gmail.com> 2025-12-08 fix(ui): enhance Compare Schedules layout for larger, full-screen side-by-side viewing
+5533c56 zyrrhky <zyrrahkaye.lacida@cit.edu> 2025-12-07 Merge pull request #6 from zyrrhky/fix/styling
+96560ae sorasai <angel.cy1316@gmail.com> 2025-12-07 chore: update logo reference in Signup component to use new favicon asset
+cdc9ed7 sorasai <angel.cy1316@gmail.com> 2025-12-07 chore: update logo reference in Login component to use new favicon asset
+145ab00 sorasai <angel.cy1316@gmail.com> 2025-12-07 chore: update logo path in Header to use new favicon asset
+4ca2456 sorasai <angel.cy1316@gmail.com> 2025-12-07 chore: update favicon reference and apply new branding
+e09a4b4 sorasai <angel.cy1316@gmail.com> 2025-12-07 chore: remove old SchedEase-logo.png after renaming to favicon
+abcbd74 sorasai <angel.cy1316@gmail.com> 2025-12-07 feat: update favicon with new SchedEase app icon
+ae1d21d Sittie Macasindel <sittiesharima.macasindel@cit.edu> 2025-12-04 Implemented UI and backend  for Compare Schedules
+df8b04a rekhonavargas04-cloud <rekhonavargas04@gmail.com> 2025-11-20 Per-user storage + auth: signup redirect and storage helpers
+e51d4c8 rekhonavargas04-cloud <rekhonavargas04@gmail.com> 2025-11-20 Remove duplicate subject import restriction and improve SetFilter UI layout
+0c12fe9 rekhonavargas04-cloud <rekhonavargas04@gmail.com> 2025-11-17 Update project
+fbe9658 zyrrhky <zyrrahkaye.lacida@cit.edu> 2025-11-16 Merge pull request #5 from zyrrhky/style/update-ui
+f992322 sorasai <angel.cy1316@gmail.com> 2025-11-16 chore(assets): add SchedEase logo and CIT logo assets
+614b651 sorasai <angel.cy1316@gmail.com> 2025-11-16 style(auth): update login/signup UI and added the SchedEase and CIT logo

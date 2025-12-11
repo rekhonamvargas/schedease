@@ -16,6 +16,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useNavigate } from "react-router-dom";
+import { clearSensitiveData } from "../utils/security";
 
 export default function Sidebar({ open = false, onClose = () => {}, onNavigate = () => {} }) {
   const navigate = useNavigate();
@@ -110,9 +111,11 @@ export default function Sidebar({ open = false, onClose = () => {}, onNavigate =
           <ListItem
             button
             onClick={() => {
-              // clear auth and current user, then go to login
+              // Clear all sensitive data securely
+              clearSensitiveData();
               localStorage.removeItem("token");
               localStorage.removeItem("schedease_current_user");
+              sessionStorage.clear();
               navigate("/login", { replace: true });
               onClose?.();
             }}

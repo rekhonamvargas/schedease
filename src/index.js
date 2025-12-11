@@ -6,6 +6,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "./theme";
 import "./index.css";
+import "./security.css";
 
 const root = createRoot(document.getElementById("root"));
 

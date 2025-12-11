@@ -1,0 +1,71 @@
+/* Security-related CSS to prevent unauthorized access and data extraction */
+
+/* Prevent text selection on sensitive elements */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Prevent copying from sensitive areas */
+.no-copy {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Hide sensitive data visually but keep for screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Prevent dragging of sensitive elements */
+.no-drag {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
+/* Blur sensitive content when dev tools are detected (optional) */
+body.dev-tools-open .sensitive-data {
+  filter: blur(5px);
+  pointer-events: none;
+}
+
+/* Watermark overlay for production (optional) */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+}
+
+/* Show watermark in production if needed */
+body.watermark-enabled::after {
+  display: block;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 100px,
+    rgba(0, 0, 0, 0.02) 100px,
+    rgba(0, 0, 0, 0.02) 200px
+  );
+}

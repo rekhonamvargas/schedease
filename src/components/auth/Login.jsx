@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import useForm from "../../hooks/useForm";
 import { loadUsers, setCurrentUserId } from "../../utils/storage";
+import { verifyPassword, sanitizeForLogging } from "../../utils/security";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -51,19 +52,34 @@ export default function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
 
     if (!validateForm()) return;
 
     try {
-      console.log("Login attempt:", { email: values.email, password: "[HIDDEN]" });
+      // Log sanitized version only
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Login attempt:", sanitizeForLogging({ 
+          email: values.email, 
+          password: values.password 
+        }));
+      }
 
       // Demo: validate against local users store
       const users = loadUsers();
       const user = users.find((u) => u.email === (values.email || ""));
-      if (!user || user.password !== values.password) {
+      
+      if (!user) {
+        setSubmitError("Invalid email or password");
+        return;
+      }
+
+      // Verify password using bcrypt
+      const isValidPassword = await verifyPassword(values.password, user.password);
+      
+      if (!isValidPassword) {
         setSubmitError("Invalid email or password");
         return;
       }

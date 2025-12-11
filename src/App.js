@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./components/Dashboard";
 import SavedSchedules from "./components/SavedSchedules";
 import CompareSchedules from "./components/CompareSchedules";
 import Login from "./components/auth/Login";
 import Signup from "./components/auth/Signup";
+import { initSecurity } from "./utils/security";
 import "./App.css";
 
 /**
@@ -20,6 +21,11 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
+  // Initialize security measures on app load
+  useEffect(() => {
+    initSecurity();
+  }, []);
+
   return (
     <Router>
       <Routes>
