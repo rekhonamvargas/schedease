@@ -39,25 +39,45 @@ export default function ImportData({ onCreateMany, disableImport = false, onNavi
       return;
     }
     
+    // Validate that all subjects have required fields (complete data)
+    const requiredFields = ["#", "Offering Dept", "Subject", "Subject Title", "Credited Units", "Section", "Schedule", "Room", "Total Slots", "Enrolled", "Assessed", "Is Closed"];
+    const incompleteSubjects = [];
+    
+    rows.forEach((row, index) => {
+      // Check if any required field is missing or empty
+      for (let i = 0; i < Math.min(row.length, requiredFields.length); i++) {
+        if (!row[i] || String(row[i]).trim() === "") {
+          incompleteSubjects.push(`Row ${index + 1} is missing: ${requiredFields[i]}`);
+          break;
+        }
+      }
+      // Check if row doesn't have all 12 fields
+      if (row.length < requiredFields.length) {
+        incompleteSubjects.push(`Row ${index + 1} has only ${row.length} fields, expected ${requiredFields.length}`);
+      }
+    });
+    
+    if (incompleteSubjects.length > 0) {
+      setSnackbarMessage(`Cannot import incomplete subjects. ${incompleteSubjects[0]}`);
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
+    
     setImportLoading(true);
     
     // Import the data first
     const mapped = rows.map(normalizeRecord);
     onCreateMany?.(mapped);
     
-    // // Show success message
-    // setSnackbarMessage(`Successfully imported ${mapped.length} subject(s). Redirecting to Subject List...`);
-    // setSnackbarSeverity("success");
-    // setSnackbarOpen(true);
     
-    // Wait 3 seconds then navigate to Subject List
     setTimeout(() => {
       setImportLoading(false);
       setText(""); // Clear the text field
       if (onNavigateToSubjects) {
         onNavigateToSubjects();
       }
-      // Close snackbar after navigation
+     
       setSnackbarOpen(false);
     }, 2000);
   };

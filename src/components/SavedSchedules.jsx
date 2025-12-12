@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Box,
@@ -33,218 +33,237 @@ import useSchedules from "../hooks/useSchedules";
 import useSubjects from "../hooks/useSubjects";
 import { parseScheduleString } from "../utils/parse";
 
-/**
- * Renamed component: SavedTimetables
- * Renamed local variables and helper functions to alternative names
- * Behavior and logic are identical to original file.
- */
-export default function SavedTimetables() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { schedules: plans, deleteSchedule: removePlan } = useSchedules([]);
-  const { subjects: courses } = useSubjects([]);
-  const [isViewOpen, setIsViewOpen] = useState(false);
-  const [activePlan, setActivePlan] = useState(null);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [planPendingDelete, setPlanPendingDelete] = useState(null);
+function SavedSchedules() {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { schedules: plansFromHook, deleteSchedule: removePlanHook, reloadSchedules } = useSchedules([]);
+    const { subjects: courses } = useSubjects([]);
+    const [isViewOpen, setIsViewOpen] = useState(false);
+    const [activePlan, setActivePlanRaw] = useState(null);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [planPendingDelete, setPlanPendingDeleteRaw] = useState(null);
 
-  // lookup map from course.data_id -> course object
-  const coursesMap = useMemo(() => {
-    const m = new Map();
-    courses.forEach((course) => {
-      if (course.data_id) m.set(String(course.data_id), course);
-    });
-    return m;
-  }, [courses]);
 
-  const openView = (plan) => {
-    setActivePlan(plan);
-    setIsViewOpen(true);
-  };
+    // Always reload schedules from backend when this component mounts
+    useEffect(() => {
+      reloadSchedules();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-  const openDeleteConfirm = (planId) => {
-    setPlanPendingDelete(planId);
-    setIsDeleteOpen(true);
-  };
+    // Reload schedules whenever the tab regains focus or a schedule is updated elsewhere
+    useEffect(() => {
+      const handleFocus = () => reloadSchedules();
+      const handleSchedulesUpdated = () => reloadSchedules();
+      window.addEventListener("focus", handleFocus);
+      window.addEventListener("schedulesUpdated", handleSchedulesUpdated);
+      return () => {
+        window.removeEventListener("focus", handleFocus);
+        window.removeEventListener("schedulesUpdated", handleSchedulesUpdated);
+      };
+    }, [reloadSchedules]);
 
-  const confirmDelete = () => {
-    if (planPendingDelete) {
-      removePlan(planPendingDelete);
+    // Reload schedules when notified of updates from other components
+    useEffect(() => {
+      const handleSchedulesUpdated = () => {
+        reloadSchedules();
+      };
+      window.addEventListener('schedulesUpdated', handleSchedulesUpdated);
+      return () => {
+        window.removeEventListener('schedulesUpdated', handleSchedulesUpdated);
+      };
+    }, [reloadSchedules]);
+
+    // No proxy mirroring; rely directly on schedules from the hook
+
+    const coursesMap = useMemo(() => {
+      const m = new Map();
+      Array.isArray(courses) && courses.forEach((course) => {
+        if (course && course.data_id) m.set(String(course.data_id), course);
+      });
+      return m;
+    }, [courses]);
+
+    const openView = (plan) => {
+      setActivePlanRaw(plan || null);
+      setIsViewOpen(true);
+    };
+
+    const openDeleteConfirm = (planId) => {
+      setPlanPendingDeleteRaw(planId ?? null);
+      setIsDeleteOpen(true);
+    };
+
+    const confirmDelete = async () => {
+      if (!planPendingDelete) return;
+      try {
+        await Promise.resolve(removePlanHook(planPendingDelete));
+        await reloadSchedules(); // Ensure UI updates after delete
+      } catch {}
       closeDeleteConfirm();
-    }
-  };
+    };
 
-  const closeDeleteConfirm = () => {
-    setIsDeleteOpen(false);
-    setPlanPendingDelete(null);
-  };
+    const closeDeleteConfirm = () => {
+      setIsDeleteOpen(false);
+      setPlanPendingDeleteRaw(null);
+    };
 
-  const closeView = () => {
-    setIsViewOpen(false);
-    setActivePlan(null);
-  };
+    const closeView = () => {
+      setIsViewOpen(false);
+      setActivePlanRaw(null);
+    };
 
-  // get course objects for a saved plan
-  const getPlanCourses = (plan) => {
-    if (!plan || !plan.subjects) return [];
-    return plan.subjects
-      .map((id) => coursesMap.get(String(id)))
-      .filter(Boolean);
-  };
+    const getPlanCourses = (plan) => {
+      if (!plan || !plan.subjects) return [];
+      return plan.subjects.map((id) => coursesMap.get(String(id))).filter(Boolean);
+    };
 
-  // time slot generator (30-min slots 07:00 -> 21:30)
-  const buildTimeSlots = () => {
-    const slots = [];
-    for (let hour = 7; hour <= 21; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const time24 = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-        let hour12 = hour;
-        let period = "AM";
-        if (hour === 0) hour12 = 12;
-        else if (hour === 12) period = "PM";
-        else if (hour > 12) {
-          hour12 = hour - 12;
-          period = "PM";
+    const buildTimeSlots = () => {
+      const slots = [];
+      for (let hour = 7; hour <= 21; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const time24 = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          let hour12 = hour;
+          let period = "AM";
+          if (hour === 0) hour12 = 12;
+          else if (hour === 12) period = "PM";
+          else if (hour > 12) {
+            hour12 = hour - 12;
+            period = "PM";
+          }
+          const time12 = `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+          slots.push({ time24, time12 });
         }
-        const time12 = `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
-        slots.push({ time24, time12 });
       }
-    }
-    return slots;
-  };
+      return slots;
+    };
 
-  const DAY_INDEX_MAP = {
-    M: { name: "Monday", idx: 0 },
-    T: { name: "Tuesday", idx: 1 },
-    W: { name: "Wednesday", idx: 2 },
-    TH: { name: "Thursday", idx: 3 },
-    F: { name: "Friday", idx: 4 },
-    S: { name: "Saturday", idx: 5 },
-    SU: { name: "Sunday", idx: 6 },
-  };
+    const DAY_INDEX_MAP = {
+      M: { name: "Monday", idx: 0 },
+      T: { name: "Tuesday", idx: 1 },
+      W: { name: "Wednesday", idx: 2 },
+      TH: { name: "Thursday", idx: 3 },
+      F: { name: "Friday", idx: 4 },
+      S: { name: "Saturday", idx: 5 },
+      SU: { name: "Sunday", idx: 6 },
+    };
 
-  const normalizeDayName = (d) => {
-    const x = d.toUpperCase().trim();
-    if (x === "TH" || x === "THU" || x === "THURS") return "TH";
-    if (x === "SU" || x === "SUN" || x === "SUNDAY") return "SU";
-    if (x === "M" || x === "MON" || x === "MONDAY") return "M";
-    if (x === "T" || x === "TUE" || x === "TUES" || x === "TUESDAY") return "T";
-    if (x === "W" || x === "WED" || x === "WEDNESDAY") return "W";
-    if (x === "F" || x === "FRI" || x === "FRIDAY") return "F";
-    if (x === "S" || x === "SAT" || x === "SATURDAY") return "S";
-    return null;
-  };
-
-  const to24Hour = (t) => {
-    if (!t) return null;
-    const m = String(t).trim().toUpperCase().match(/^(\d{1,2}):(\d{2})\s*([AP])M$/);
-    if (!m) {
-      const m24 = String(t).trim().match(/^(\d{1,2}):(\d{2})$/);
-      if (m24) return `${String(parseInt(m24[1], 10)).padStart(2, "0")}:${m24[2]}`;
+    const normalizeDayName = (d) => {
+      const x = d.toUpperCase().trim();
+      if (x === "TH" || x === "THU" || x === "THURS") return "TH";
+      if (x === "SU" || x === "SUN" || x === "SUNDAY") return "SU";
+      if (x === "M" || x === "MON" || x === "MONDAY") return "M";
+      if (x === "T" || x === "TUE" || x === "TUES" || x === "TUESDAY") return "T";
+      if (x === "W" || x === "WED" || x === "WEDNESDAY") return "W";
+      if (x === "F" || x === "FRI" || x === "FRIDAY") return "F";
+      if (x === "S" || x === "SAT" || x === "SATURDAY") return "S";
       return null;
-    }
-    let [, hh, mm, ap] = m;
-    let h = parseInt(hh, 10);
-    if (ap === "P" && h !== 12) h += 12;
-    if (ap === "A" && h === 12) h = 0;
-    return `${String(h).padStart(2, "0")}:${mm}`;
-  };
+    };
 
-  // parse a course.schedule string into [{ day, start, end, room }, ...]
-  const parseCourseSchedule = (scheduleString) => {
-    if (!scheduleString) return [];
-    const parts = scheduleString.split(" / ").map((s) => s.trim()).filter(Boolean);
-    const out = [];
+    const to24Hour = (t) => {
+      if (!t) return null;
+      const m = String(t).trim().toUpperCase().match(/^(\d{1,2}):(\d{2})\s*([AP])M$/);
+      if (!m) {
+        const m24 = String(t).trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (m24) return `${String(parseInt(m24[1], 10)).padStart(2, "0")}:${m24[2]}`;
+        return null;
+      }
+      let [, hh, mm, ap] = m;
+      let h = parseInt(hh, 10);
+      if (ap === "P" && h !== 12) h += 12;
+      if (ap === "A" && h === 12) h = 0;
+      return `${String(h).padStart(2, "0")}:${mm}`;
+    };
 
-    for (const part of parts) {
-      const parsed = parseScheduleString(part);
-      if (parsed) {
-        out.push(parsed);
-      } else {
-        const multi = part.match(/^([A-Z\s]+)\s+(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)\s*(.*)$/i);
-        if (multi) {
-          const [, daysStr, start12, end12, tail] = multi;
-          const days = daysStr.trim().split(/\s+/).filter(Boolean);
-          const room = tail?.trim() || "";
-          const start24 = to24Hour(start12);
-          const end24 = to24Hour(end12);
-
-          if (start24 && end24) {
-            for (const d of days) {
-              const nd = normalizeDayName(d);
-              if (nd) {
-                out.push({
-                  day: nd,
-                  start: start24,
-                  end: end24,
-                  room,
-                });
+    const parseCourseSchedule = (scheduleString) => {
+      if (!scheduleString) return [];
+      const parts = scheduleString.split(" / ").map((s) => s.trim()).filter(Boolean);
+      const out = [];
+      for (const part of parts) {
+        const parsed = parseScheduleString(part);
+        if (parsed) {
+          out.push(parsed);
+        } else {
+          const multi = part.match(/^([A-Z\s]+)\s+(\d{1,2}):(\d{2})\s*[ap]m\s*-\s*(\d{1,2}):(\d{2})\s*[ap]m\s*(.*)$/i);
+          if (multi) {
+            const [, daysStr, start12, end12, tail] = multi;
+            const days = daysStr.trim().split(/\s+/).filter(Boolean);
+            const room = tail?.trim() || "";
+            const start24 = to24Hour(start12);
+            const end24 = to24Hour(end12);
+            if (start24 && end24) {
+              for (const d of days) {
+                const nd = normalizeDayName(d);
+                if (nd) {
+                  out.push({
+                    day: nd,
+                    start: start24,
+                    end: end24,
+                    room,
+                  });
+                }
               }
             }
           }
         }
       }
-    }
+      return out;
+    };
 
-    return out;
-  };
+    const slotWithinRange = (time24, start24, end24) => {
+      if (!time24 || !start24 || !end24) return false;
+      const [tH, tM] = time24.split(":").map(Number);
+      const [sH, sM] = start24.split(":").map(Number);
+      const [eH, eM] = end24.split(":").map(Number);
+      if ([tH, tM, sH, sM, eH, eM].some((v) => Number.isNaN(v))) return false;
+      const tMin = tH * 60 + tM;
+      const sMin = sH * 60 + sM;
+      const eMin = eH * 60 + eM;
+      return tMin >= sMin && tMin < eMin;
+    };
 
-  const slotWithinRange = (time24, start24, end24) => {
-    if (!time24 || !start24 || !end24) return false;
-    const [tH, tM] = time24.split(":").map(Number);
-    const [sH, sM] = start24.split(":").map(Number);
-    const [eH, eM] = end24.split(":").map(Number);
-    if ([tH, tM, sH, sM, eH, eM].some((v) => Number.isNaN(v))) return false;
-    const tMin = tH * 60 + tM;
-    const sMin = sH * 60 + sM;
-    const eMin = eH * 60 + eM;
-    return tMin >= sMin && tMin < eMin;
-  };
+    const computeRowSpan = (start24, end24) => {
+      if (!start24 || !end24) return 1;
+      const [sH, sM] = start24.split(":").map(Number);
+      const [eH, eM] = end24.split(":").map(Number);
+      if ([sH, sM, eH, eM].some((v) => Number.isNaN(v))) return 1;
+      const sMin = sH * 60 + sM;
+      const eMin = eH * 60 + eM;
+      const duration = eMin - sMin;
+      return Math.max(1, Math.ceil(duration / 30));
+    };
 
-  const computeRowSpan = (start24, end24) => {
-    if (!start24 || !end24) return 1;
-    const [sH, sM] = start24.split(":").map(Number);
-    const [eH, eM] = end24.split(":").map(Number);
-    if ([sH, sM, eH, eM].some((v) => Number.isNaN(v))) return 1;
-    const sMin = sH * 60 + sM;
-    const eMin = eH * 60 + eM;
-    const duration = eMin - sMin;
-    return Math.max(1, Math.ceil(duration / 30));
-  };
-
-  // build grid mapping for active plan
-  const buildTimetableGrid = (plan) => {
-    const timeSlots = buildTimeSlots();
-    const planCourses = getPlanCourses(plan);
-    const grid = new Map();
-
-    planCourses.forEach((course) => {
-      if (!course.schedule) return;
-      const parsedList = parseCourseSchedule(course.schedule);
-      parsedList.forEach((p) => {
-        const dayIdx = DAY_INDEX_MAP[p.day]?.idx;
-        if (dayIdx === undefined) return;
-        timeSlots.forEach((slot, si) => {
-          if (slotWithinRange(slot.time24, p.start, p.end)) {
-            const key = `${dayIdx}_${slot.time24}`;
-            if (!grid.has(key)) {
-              grid.set(key, {
-                course,
-                parsed: p,
-                startSlot: si,
-                rowSpan: computeRowSpan(p.start, p.end),
-              });
+    const buildTimetableGrid = (plan) => {
+      const timeSlots = buildTimeSlots();
+      const planCourses = getPlanCourses(plan);
+      const grid = new Map();
+      planCourses.forEach((course) => {
+        if (!course || !course.schedule) return;
+        const parsedList = parseCourseSchedule(course.schedule);
+        parsedList.forEach((p) => {
+          const dayIdx = DAY_INDEX_MAP[p.day]?.idx;
+          if (dayIdx === undefined) return;
+          timeSlots.forEach((slot, si) => {
+            if (slotWithinRange(slot.time24, p.start, p.end)) {
+              const key = `${dayIdx}_${slot.time24}`;
+              if (!grid.has(key)) {
+                grid.set(key, {
+                  course,
+                  parsed: p,
+                  startSlot: si,
+                  rowSpan: computeRowSpan(p.start, p.end),
+                });
+              }
             }
-          }
+          });
         });
       });
-    });
+      return { grid, timeSlots };
+    };
 
-    return { grid, timeSlots };
-  };
+
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#fff6db" }}>
-      <Header onMenu={() => setIsSidebarOpen(true)} cartCount={plans.length} />
+      <Header onMenu={() => setIsSidebarOpen(true)} cartCount={Array.isArray(plansFromHook) ? plansFromHook.length : 0} />
       <Sidebar open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onNavigate={() => setIsSidebarOpen(false)} />
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -257,7 +276,7 @@ export default function SavedTimetables() {
           </Typography>
         </Box>
 
-        {plans.length === 0 ? (
+        {(!Array.isArray(plansFromHook) || plansFromHook.length === 0) ? (
           <Paper sx={{ p: 6, textAlign: "center", bgcolor: "#fffef7", borderRadius: 3, boxShadow: "0 2px 12px rgba(158, 8, 7, 0.08)", border: "1px solid rgba(244, 197, 34, 0.15)" }}>
             <CalendarTodayIcon sx={{ fontSize: 64, color: "#f4c522", mb: 2, opacity: 0.5 }} />
             <Typography variant="h6" sx={{ color: "#666", fontFamily: "'Poppins', sans-serif", mb: 1 }}>
@@ -269,9 +288,9 @@ export default function SavedTimetables() {
           </Paper>
         ) : (
           <Grid container spacing={3}>
-            {plans.map((plan) => {
+            {plansFromHook.map((plan) => {
               const planCourses = getPlanCourses(plan);
-              const createdLabel = plan.created_at
+              const createdLabel = plan?.created_at
                 ? new Date(plan.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
                 : "Unknown date";
 
@@ -282,7 +301,7 @@ export default function SavedTimetables() {
                       <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                         <EventIcon sx={{ color: "#f4c522", mr: 1.5, fontSize: 28 }} />
                         <Typography variant="h6" sx={{ fontWeight: 700, color: "#9e0807", fontFamily: "'Poppins', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {plan.schedule_name || "Untitled Schedule"}
+                          {plan?.schedule_name || "Untitled Schedule"}
                         </Typography>
                       </Box>
 
@@ -307,7 +326,6 @@ export default function SavedTimetables() {
           </Grid>
         )}
 
-        {/* View Dialog */}
         <Dialog open={isViewOpen} onClose={closeView} maxWidth="xl" fullWidth PaperProps={{ sx: { borderRadius: 3, bgcolor: "#fffef7", maxHeight: "90vh" } }}>
           <DialogTitle sx={{ fontWeight: 700, color: "#9e0807", fontFamily: "'Poppins', sans-serif", borderBottom: "1px solid rgba(244, 197, 34, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -374,8 +392,8 @@ export default function SavedTimetables() {
                                   <TableCell key={dayIdx} rowSpan={rowSpan} sx={{ backgroundColor: "#f4c522", borderRight: "1px solid #d29119", borderBottom: "1px solid #d29119", p: 1, verticalAlign: "middle", textAlign: "center", width: "calc((100% - 70px) / 7)" }}>
                                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%" }}>
                                       <Typography variant="body2" sx={{ fontWeight: 700, color: "#333333", mb: 0.5 }}>
-                                        {course.subject_code}
-                                        {course.section && <Chip label={course.section} size="small" sx={{ ml: 0.5, height: 18, fontSize: "0.7rem", backgroundColor: "rgba(158, 8, 7, 0.15)", color: "#9e0807", border: "1px solid rgba(158, 8, 7, 0.3)" }} />}
+                                        {course?.subject_code}
+                                        {course?.section && <Chip label={course.section} size="small" sx={{ ml: 0.5, height: 18, fontSize: "0.7rem", backgroundColor: "rgba(158, 8, 7, 0.15)", color: "#9e0807", border: "1px solid rgba(158, 8, 7, 0.3)" }} />}
                                       </Typography>
                                       <Typography variant="caption" sx={{ color: "#333333", display: "block" }}>{parsed.start} - {parsed.end}</Typography>
                                       {parsed.room && <Typography variant="caption" sx={{ color: "#333333", display: "block" }}>Room: {parsed.room}</Typography>}
@@ -397,7 +415,6 @@ export default function SavedTimetables() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation */}
         <Dialog open={isDeleteOpen} onClose={closeDeleteConfirm} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, bgcolor: "#fffef7" } }}>
           <DialogTitle sx={{ fontWeight: 700, color: "#9e0807", fontFamily: "'Poppins', sans-serif", borderBottom: "1px solid rgba(244, 197, 34, 0.2)" }}>
             Delete Schedule?
@@ -414,3 +431,5 @@ export default function SavedTimetables() {
     </Box>
   );
 }
+
+export default SavedSchedules;

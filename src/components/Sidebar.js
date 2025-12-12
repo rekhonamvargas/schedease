@@ -16,7 +16,6 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useNavigate } from "react-router-dom";
-import { clearSensitiveData } from "../utils/security";
 
 export default function Sidebar({ open = false, onClose = () => {}, onNavigate = () => {} }) {
   const navigate = useNavigate();
@@ -96,10 +95,12 @@ export default function Sidebar({ open = false, onClose = () => {}, onNavigate =
               </ListItemIcon>
               <ListItemText 
                 primary={it.label}
-                primaryTypographyProps={{
-                  fontFamily: "'Poppins', sans-serif",
-                  fontWeight: 500,
-                  color: "#333",
+                slotProps={{
+                  primary: {
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: 500,
+                    color: "#333",
+                  },
                 }}
               />
             </ListItem>
@@ -111,8 +112,7 @@ export default function Sidebar({ open = false, onClose = () => {}, onNavigate =
           <ListItem
             button
             onClick={() => {
-              // Clear all sensitive data securely
-              clearSensitiveData();
+              // Clear all sensitive data
               localStorage.removeItem("token");
               localStorage.removeItem("schedease_current_user");
               sessionStorage.clear();
@@ -131,10 +131,12 @@ export default function Sidebar({ open = false, onClose = () => {}, onNavigate =
             </ListItemIcon>
             <ListItemText 
               primary="Logout"
-              primaryTypographyProps={{
-                fontFamily: "'Poppins', sans-serif",
-                fontWeight: 500,
-                color: "#f44336",
+              slotProps={{
+                primary: {
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 500,
+                  color: "#f44336",
+                },
               }}
             />
           </ListItem>

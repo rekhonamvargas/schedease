@@ -1,42 +1,93 @@
 import { useState, useCallback, useEffect } from "react";
 import { nextId } from "../utils/ids";
-import { userKey } from "../utils/storage";
 
-const SUBJECTS_STORAGE_BASE = "schedease_subjects";
+const API_BASE_URL = "http://localhost:4000/api";
 
-// Load subjects from localStorage for current user
-function loadSubjectsFromStorage() {
+// Get current username from localStorage
+function getCurrentUsername() {
   try {
-    const key = userKey(SUBJECTS_STORAGE_BASE);
-    const stored = localStorage.getItem(key);
-    if (stored) return JSON.parse(stored);
-  } catch (error) {
-    console.error("Failed to load subjects from localStorage:", error);
+    const user = localStorage.getItem("schedease_current_user");
+    if (!user) return null;
+    // Try to parse as JSON first, if it fails, it's a plain string
+    try {
+      const parsed = JSON.parse(user);
+      return parsed.username || parsed;
+    } catch {
+      // It's already a plain string username
+      return user;
+    }
+  } catch {
+    return null;
   }
-  return [];
 }
 
-// Save subjects to localStorage for current user
-function saveSubjectsToStorage(subjects) {
+// Load subjects from API for current user
+async function loadSubjectsFromAPI() {
   try {
-    const key = userKey(SUBJECTS_STORAGE_BASE);
-    localStorage.setItem(key, JSON.stringify(subjects));
+    const username = getCurrentUsername();
+    if (!username) {
+      console.warn("No username found, cannot load subjects");
+      return [];
+    }
+
+    const res = await fetch(`${API_BASE_URL}/subjects/${username}`);
+    if (!res.ok) {
+      if (res.status === 404) return []; // No subjects yet
+      throw new Error(`Failed to load subjects: ${res.status}`);
+    }
+    
+    return await res.json();
   } catch (error) {
-    console.error("Failed to save subjects to localStorage:", error);
+    console.error("Failed to load subjects from API:", error);
+    return [];
+  }
+}
+
+// Save subjects to API for current user
+async function saveSubjectsToAPI(subjects) {
+  try {
+    const username = getCurrentUsername();
+    if (!username) {
+      throw new Error('No username found');
+    }
+
+    const res = await fetch(`${API_BASE_URL}/subjects/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,
+        subjects,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to save subjects: ${res.status}`);
+    }
+  } catch (error) {
+    console.error("Failed to save subjects to API:", error);
   }
 }
 
 export default function useSubjects(initial = []) {
-  const [subjects, setSubjects] = useState(() => {
-    // Initialize from localStorage on first render
-    const stored = loadSubjectsFromStorage();
-    return stored.length > 0 ? stored : initial;
-  });
+  const [subjects, setSubjects] = useState(initial);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Persist subjects to localStorage whenever they change
+  // Load subjects from API on mount
   useEffect(() => {
-    saveSubjectsToStorage(subjects);
-  }, [subjects]);
+    loadSubjectsFromAPI().then((loadedSubjects) => {
+      if (loadedSubjects.length > 0) {
+        setSubjects(loadedSubjects);
+      }
+      setIsLoaded(true);
+    });
+  }, []);
+
+  // Persist subjects to API whenever they change (but only after initial load)
+  useEffect(() => {
+    if (isLoaded) {
+      saveSubjectsToAPI(subjects);
+    }
+  }, [subjects, isLoaded]);
 
   const addMany = useCallback((parsedArray = []) => {
     setSubjects((prev) => {

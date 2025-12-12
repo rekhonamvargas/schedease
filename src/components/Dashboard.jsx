@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect } from "react";
-import { Box, Snackbar, Alert, Paper, Button, Stack, Typography, Avatar } from "@mui/material";
+import { Box, Snackbar, Alert, Paper, Button, Stack, Typography } from "@mui/material";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import ImportData from "./ImportData";
@@ -16,7 +16,7 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import ListAltIcon from "@mui/icons-material/ListAlt";
-import SchoolIcon from "@mui/icons-material/School";
+
 
 const COLORS = { bg: "#fff6db", paper: "#fffef7", primary: "#9e0807", gold: "#f4c522" };
 
@@ -29,7 +29,7 @@ export default function Dashboard() {
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const { breakBetweenMinutes, setBreakBetweenMinutes, excludeDays, toggleExcludeDay, classTypes, toggleClassType, filterSubjects } = useFilters({});
+  const { breakBetweenMinutes, excludeDays, toggleExcludeDay, classTypes, toggleClassType, filterSubjects } = useFilters({});
 
   const handleEditOpen = useCallback((item) => { setEditing(item); setEditOpen(true); }, []);
   const handleSaveEditedWrapper = useCallback((item) => {
@@ -49,7 +49,17 @@ export default function Dashboard() {
     try { const stored = localStorage.getItem(ADDED_KEY); if (stored) return new Set(JSON.parse(stored)); } catch {}
     return new Set();
   });
+  // Persist addedSubjectIds to localStorage
   useEffect(() => { try { localStorage.setItem(ADDED_KEY, JSON.stringify(Array.from(addedSubjectIds))); } catch {} }, [addedSubjectIds, ADDED_KEY]);
+
+  // Defensive sync: Remove any IDs from addedSubjectIds that are not present in dataList
+  useEffect(() => {
+    const validIds = new Set((dataList || []).map((d) => String(d.data_id ?? `${d.subject_code}-${d.section || ""}`)));
+    setAddedSubjectIds((prev) => {
+      const filtered = new Set([...prev].filter((id) => validIds.has(id)));
+      return filtered.size === prev.size ? prev : filtered;
+    });
+  }, [dataList]);
 
   const handleSubjectAdd = useCallback((item, isAdded) => {
     const id = String(item.data_id ?? `${item.subject_code}-${item.section || ""}`);

@@ -11,7 +11,7 @@ import {
   Stack,
 } from "@mui/material";
 import useForm from "../../hooks/useForm";
-import { loadUsers, setCurrentUserId } from "../../utils/storage";
+import { loadUsers, setCurrentUserId, loginUser } from "../../utils/storage";
 import { verifyPassword, sanitizeForLogging } from "../../utils/security";
 
 export default function Login() {
@@ -67,31 +67,22 @@ export default function Login() {
         }));
       }
 
-      // Demo: validate against local users store
-      const users = loadUsers();
-      const user = users.find((u) => u.email === (values.email || ""));
+      // Call API to login
+      const result = await loginUser(values.email, values.password);
       
-      if (!user) {
+      if (!result.success) {
         setSubmitError("Invalid email or password");
         return;
       }
 
-      // Verify password using bcrypt
-      const isValidPassword = await verifyPassword(values.password, user.password);
-      
-      if (!isValidPassword) {
-        setSubmitError("Invalid email or password");
-        return;
-      }
-
-      // Simulate saving auth token - replace with real API call
-      localStorage.setItem("token", "demo-token");
-      setCurrentUserId(user.username || user.email);
+      // Save auth token and user info
+      localStorage.setItem("token", result.token || "demo-token");
+      setCurrentUserId(result.user.username || result.user.email);
 
       // Navigate to dashboard (not "/") to avoid redirect loop
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setSubmitError("An error occurred while logging in. Please try again.");
+      setSubmitError(err.message || "An error occurred while logging in. Please try again.");
     }
   };
 

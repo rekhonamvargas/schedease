@@ -11,7 +11,7 @@ import {
   Stack,
 } from "@mui/material";
 import useForm from "../../hooks/useForm";
-import { loadUsers, saveUsers, setCurrentUserId } from "../../utils/storage";
+import { loadUsers, saveUser, setCurrentUserId } from "../../utils/storage";
 import { hashPassword, sanitizeForLogging } from "../../utils/security";
 
 export default function Signup() {
@@ -90,34 +90,22 @@ export default function Signup() {
         }));
       }
 
-      // Local demo users store
-      const users = loadUsers();
-      // check duplicates
-      if (users.some((u) => u.username === values.username || u.email === values.email)) {
-        setSubmitError("Username or email already exists");
-        return;
-      }
-
-      // Hash the password before storing
-      const hashedPassword = await hashPassword(values.password);
-
+     
       const newUser = {
         username: values.username,
         email: values.email,
-        password: hashedPassword, // Store hashed password
+        password: values.password, 
         full_name: values.full_name,
       };
-      users.push(newUser);
-      saveUsers(users);
+      
+      await saveUser(newUser);
 
       // After signup, navigate to login so the user can sign in
       navigate("/login", { replace: true });
 
-      // If you prefer to auto-login after signup, use:
-      // localStorage.setItem("token", "demo-token");
-      // navigate("/dashboard", { replace: true });
+      
     } catch (err) {
-      setSubmitError("An error occurred while registering. Please try again.");
+      setSubmitError(err.message || "An error occurred while registering. Please try again.");
     }
   };
 

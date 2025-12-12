@@ -1,5 +1,7 @@
 // Utilities for namespacing localStorage keys by current user
 
+const API_BASE_URL = "http://localhost:4000/api";
+
 /**
  * Data integrity check - create checksum for stored data
  */
@@ -27,20 +29,6 @@ function verifyDataIntegrity(data, checksum) {
 export function getCurrentUserId() {
   try {
     const u = localStorage.getItem("schedease_current_user");
-    
-    // Validate that it's not been tampered with
-    if (u) {
-      // Check if user exists in users list
-      const users = loadUsers();
-      const userExists = users.some(user => user.username === u || user.email === u);
-      
-      if (!userExists) {
-        console.warn('Invalid user ID detected');
-        localStorage.removeItem("schedease_current_user");
-        return null;
-      }
-    }
-    
     return u || null;
   } catch (e) {
     return null;
@@ -66,56 +54,66 @@ export function userKey(baseKey) {
   return id ? `${baseKey}::${id}` : `${baseKey}::guest`;
 }
 
-// Simple users store helpers (for demo/local auth)
-const USERS_KEY = "schedease_users";
-const USERS_CHECKSUM_KEY = "schedease_users_checksum";
-
-export function loadUsers() {
+// API-based users management
+export async function loadUsers() {
   try {
-    const s = localStorage.getItem(USERS_KEY);
-    const checksum = localStorage.getItem(USERS_CHECKSUM_KEY);
-    
-    if (!s) return [];
-    
-    const users = JSON.parse(s);
-    
-    // Verify data integrity
-    if (checksum && !verifyDataIntegrity(users, checksum)) {
-      console.warn('Users data integrity check failed - possible tampering detected');
-      // Return empty array if data has been tampered with
-      localStorage.removeItem(USERS_KEY);
-      localStorage.removeItem(USERS_CHECKSUM_KEY);
-      return [];
+    const res = await fetch(`${API_BASE_URL}/users`);
+    if (!res.ok) {
+      if (res.status === 404) return [];
+      throw new Error(`Failed to load users: ${res.status}`);
     }
-    
-    return users;
+    return await res.json();
   } catch (e) {
-    console.error('Error loading users');
+    console.error('Error loading users:', e);
     return [];
   }
 }
 
-export function saveUsers(users) {
+export async function saveUser(user) {
   try {
-    if (!Array.isArray(users)) {
-      throw new Error('Users must be an array');
+    if (!user || typeof user !== 'object') {
+      throw new Error('User must be an object');
     }
-    
-    // Validate each user object
-    const validUsers = users.filter(user => {
-      return user && 
-             typeof user === 'object' &&
-             user.username && 
-             user.email && 
-             user.password;
+
+    // Validate user object
+    if (!user.username || !user.email || !user.password) {
+      throw new Error('User must have username, email, and password');
+    }
+
+    const res = await fetch(`${API_BASE_URL}/users/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(user),
     });
-    
-    // Create checksum for integrity check
-    const checksum = createChecksum(validUsers);
-    
-    localStorage.setItem(USERS_KEY, JSON.stringify(validUsers));
-    localStorage.setItem(USERS_CHECKSUM_KEY, checksum);
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || `Failed to register user: ${res.status}`);
+    }
+
+    return await res.json();
   } catch (e) {
-    console.error('Error saving users');
+    console.error('Error saving user:', e);
+    throw e;
+  }
+}
+
+export async function loginUser(email, password) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/users/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Invalid credentials');
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error('Error logging in:', e);
+    throw e;
   }
 }

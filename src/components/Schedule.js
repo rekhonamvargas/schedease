@@ -24,6 +24,8 @@ import {
   FormControlLabel,
   FormControl,
   FormLabel,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -175,6 +177,9 @@ export default function Schedule({
   const [lastSavedTime, setLastSavedTime] = useState(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   const scheduleContainerRef = useRef(null);
   const schedulePaperRef = useRef(null);
 
@@ -228,9 +233,21 @@ export default function Schedule({
 
   const handleSaveSchedule = useCallback(() => {
     if (!scheduleName.trim()) {
-      alert("Please enter a schedule name");
+      setSnackbarMessage("Please enter a schedule name");
+      setSnackbarSeverity("warning");
+      setSnackbarOpen(true);
       return;
     }
+    
+    // Strict validation: filter out falsy/empty subject IDs
+    const validSubjectIds = (addedSubjectIds || []).filter(Boolean);
+    if (!validSubjectIds.length) {
+      setSnackbarMessage("Cannot save schedule without subjects. Please add at least one subject to the schedule.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
+    
     const scheduleData = {
       schedule_name: scheduleName.trim(),
       subjects: addedSubjectIds,
@@ -735,6 +752,26 @@ export default function Schedule({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for validation messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            fontSize: "1rem",
+            fontWeight: 600,
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
